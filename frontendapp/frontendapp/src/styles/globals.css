@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+/* ===========================
+   VARIABLES DE TEMA (CRM)
+   =========================== */
+@theme {
+  --color-primary: #ED3500;
+  --color-primary-hover: #C62C00;
+  --color-soft: #FFF6F2;
+
+  --radius-xl: 1rem;
+
+  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+
+/* ===========================
+   ESTILOS BASE
+   =========================== */
+@layer base {
+  body {
+    @apply bg-white text-gray-700 antialiased;
+  }
+}
+
+.swal2-confirm-custom {
+  background-color: #ED3500 !important;
+  color: white !important;
+}
+.swal2-confirm-custom:hover {
+  background-color: #c72a00 !important;
+}
+
+html {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+:root {
+  --bg-main: #f3f4f6;        /* gray-100 */
+  --bg-surface: #ffffff;    /* cards */
+  --text-main: #111827;     /* gray-900 */
+  --text-muted: #6b7280;    /* gray-500 */
+  --border-main: #e5e7eb;
+
+  --primary: #ED3500;
+}
+
+.dark {
+  --bg-main: #00000095;       /* slate-900 */
+  --bg-surface: #020617;    /* slate-950 */
+  --text-main: #f9fafb;
+  --text-muted: #9ca3af;
+  --border-main: #1f2937;
+
+  --primary: #ED3500;
+}
+@layer components {
+  .bg-main {
+    background-color: var(--bg-main);
+  }
+
+  .bg-surface {
+    background-color: var(--bg-surface);
+  }
+
+  .text-main {
+    color: var(--text-main);
+  }
+
+  .text-muted {
+    color: var(--text-muted);
+  }
+
+  .border-main {
+    border-color: var(--border-main);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.35s ease-out;
+}

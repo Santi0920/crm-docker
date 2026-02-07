@@ -1,0 +1,115 @@
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: crm-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: crm_db
+      MYSQL_USER: crm_user
+      MYSQL_PASSWORD: crm_pass
+    ports:
+      - "3307:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: crm-phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      MYSQL_ROOT_PASSWORD: root123
+    ports:
+      - "8080:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  users-api:
+    build:
+      context: ./users-api/users
+      dockerfile: Dockerfile
+    container_name: users-api
+    working_dir: /var/www
+    volumes:
+      - ./users-api/users:/var/www
+    ports:
+      - "8000:8000"
+    environment:
+      DB_HOST: mysql
+      DB_DATABASE: crm_db
+      DB_USERNAME: crm_user
+      DB_PASSWORD: crm_pass
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: php artisan serve --host=0.0.0.0 --port=8000
+
+  sales-api:
+    build:
+      context: ./sales-api/sales
+      dockerfile: Dockerfile
+    container_name: sales-api
+    working_dir: /var/www
+    volumes:
+      - ./sales-api/sales:/var/www
+    ports:
+      - "8001:8000"
+    environment:
+      DB_HOST: mysql
+      DB_DATABASE: crm_db
+      DB_USERNAME: crm_user
+      DB_PASSWORD: crm_pass
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: php artisan serve --host=0.0.0.0 --port=8000
+
+  frontendapp:
+    image: node:20
+    container_name: crm-react-js
+    working_dir: /app
+    volumes:
+      - ./frontendapp/frontendapp:/app
+      - frontend_node_modules:/app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+    command: sh -c "npm install && npm run dev -- --host"
+    stdin_open: true
+    tty: true
+
+  user-api-express:
+    image: node:20
+    container_name: user-api-express
+    working_dir: /app
+    volumes:
+      - ./user-api-express:/app
+      - express_node_modules:/app/node_modules
+    ports:
+      - "4000:4000"
+    environment:
+      DB_HOST: mysql
+      DB_USER: crm_user
+      DB_PASSWORD: crm_pass
+      DB_NAME: crm_db
+      DB_PORT: 3306
+      JWT_SECRET: super_secret_jwt_key
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: sh -c "npm install && npm run dev"
+
+volumes:
+  dbdata:
+  frontend_node_modules:
+  express_node_modules:
