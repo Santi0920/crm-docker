@@ -1,0 +1,24 @@
+{
+  "name": "user-api-express",
+  "version": "1.0.0",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon --legacy-watch src/server.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^7.3.0",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.10.0"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "nodemon": "^3.1.11",
+    "prisma": "^7.3.0"
+  }
+}
+

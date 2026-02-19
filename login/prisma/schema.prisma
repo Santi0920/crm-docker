@@ -1,0 +1,486 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// =========================
+// AUTHENTICATION & AUTHORIZATION MODELS
+// =========================
+enum user_status {
+  activo
+  inactivo
+  bloqueado
+}
+model Usuario {
+  id           Int          @id @default(autoincrement())
+  nombre       String?      @db.VarChar(255)
+  apellidos    String?      @db.VarChar(255)
+  email        String?      @unique
+  password     String?      @db.VarChar(255)
+  estado       user_status  @default(activo)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt // metodo que sirve para actualizar la fecha de actualización cada vez que se actualiza el registro
+
+  //Relaciones con AUTH MODELS
+  userRoles   UsuarioRol[]
+  permisoUsuarios PermisoUsuario[]
+  //foranea key opcional
+  profile       UsuarioPerfil?
+
+
+  //RELACION CON ORGANIZATION MODELS
+  usuarioSedes  UsuarioSede[]
+  usuarioDepartamentos UsuarioDepartamento[]
+
+  //Relación con audit logs
+  auditLogs     AuditLog[]
+
+  //Relacion con general models
+  tareas         Tarea[]
+  tareasAsignadas TareaAsignado[]
+  tareaDocumentos TareaDocumento[]
+  reuniones      Reunion[]
+  reunionParticipantes ReunionParticipante[]
+  carpetas       Carpeta[]
+  decisionesCreadas      Decision[] @relation("DecisionesCreadas")
+  decisionesResponsables Decision[] @relation("DecisionesResponsables")
+  decisionArchivos DecisionArchivo[]
+  //Relación con permisos carpeta y archivos
+  carpetaPermisos  CarpetaoArchivo_Permiso[]
+  archivos         Archivo[]
+
+  
+  @@map("auth_usuarios")
+}
+
+
+enum tipo_persona {
+  natural
+  juridica
+}
+model UsuarioPerfil {
+  id                      Int           @id @default(autoincrement())
+  usuarioId               Int           @unique
+  tipo_persona            tipo_persona  @default(natural)
+  nacionalidad            String?       @db.VarChar(255)
+  cedula                  String?       @db.VarChar(255)
+  telefono                String?       @db.VarChar(255)
+  digital_firma_path      String?       @db.LongText
+
+  //Foranea key
+  user      Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("auth_perfil_usuarios")
+}
+
+//Tabla Pivote, conexion entre usuarios y roles
+model UsuarioRol {
+  id        Int     @id @default(autoincrement())
+  usuarioId    Int
+  rolId    Int
+
+  //Foranea keys
+  user      Usuario    @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  role      Rol    @relation(fields: [rolId], references: [id], onDelete: Cascade)
+
+  @@map("auth_usuario_roles")
+}
+
+model Rol {
+  id            Int       @id @default(autoincrement())
+  nombre        String    @unique
+  descripcion   String?   @db.LongText
+  createdAt     DateTime  @default(now())
+
+  userRoles   UsuarioRol[]
+  rolePermissions RolPermiso[]
+  //Relación con permisos
+  carpetaPermisos  CarpetaoArchivo_Permiso[]
+  @@map("auth_roles")
+}
+
+//Tabla Pivote, conexion entre roles y permisos
+model RolPermiso {
+  id            Int       @id @default(autoincrement())
+  rolId        Int
+  permisoId  Int
+
+  //Foranea keys
+  role          Rol      @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  permission    Permiso @relation(fields: [permisoId], references: [id], onDelete: Cascade)
+
+  @@map("auth_rol_permisos")
+}
+
+
+model Permiso {
+  id            Int       @id @default(autoincrement())
+  submoduloId   Int
+  nombre        String    @unique
+  descripcion   String?   @db.LongText
+  key           String?   @db.VarChar(255)
+  createdAt     DateTime  @default(now())
+
+  rolePermissions RolPermiso[]
+  permisoUsuarios PermisoUsuario[]
+
+  @@map("auth_permisos")
+}
+
+enum tipo_permiso_accion {
+  allow
+  deny
+}
+model PermisoUsuario {
+  id            Int       @id @default(autoincrement())
+  usuarioId     Int
+  permisoId     Int
+  tipo          tipo_permiso_accion @default(allow) 
+
+  //Foranea keys
+  user          Usuario    @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  permission    Permiso @relation(fields: [permisoId], references: [id], onDelete: Cascade)
+
+  @@map("auth_usuario_permisos")
+}
+
+
+model Modulo {
+  id            Int       @id @default(autoincrement())
+  nombre        String    @unique
+  key           String?   @db.VarChar(255)
+  icono         String?   @db.VarChar(255)
+  order_index   Int?      @default(0)
+
+  submodulos    Submodulo[]
+
+  @@map("auth_modulos")
+}
+
+model Submodulo {
+  id            Int       @id @default(autoincrement())
+  moduloId      Int
+  nombre        String    @unique
+  key           String?   @db.VarChar(255)
+  ruta          String?   @db.LongText
+  order_index   Int?      @default(0)
+
+  //Foranea key
+  modulo        Modulo    @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+
+  @@map("auth_submodulos")
+}
+
+// =========================
+// ORGANIZATION MODELS
+// =========================
+model Sede {
+  id            Int       @id @default(autoincrement())
+  nombre        String    @unique
+  direccion     String?   @db.VarChar(255)
+  codigo        String?   @db.VarChar(255)
+  telefono      String?   @db.VarChar(255)
+
+  usuarioSedes  UsuarioSede[]
+
+  @@map("org_sedes")
+}
+
+//tabla pivote para asignar sedes a usuarios
+model UsuarioSede {
+  id           Int     @id @default(autoincrement())
+  usuarioId    Int
+  sedeId       Int
+
+  //Foranea keys
+  user      Usuario    @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  sede      Sede    @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+
+  @@map("org_usuario_sedes")
+}
+
+//area de departamento como, por ejemplo, recursos humanos, finanzas, etc. 
+model Departamento {
+  id            Int       @id @default(autoincrement())
+  nombre        String    @unique
+  descripcion   String?   @db.LongText
+
+  usuarioDepartamentos UsuarioDepartamento[]
+
+  @@map("org_departamentos")
+}
+
+model UsuarioDepartamento {
+  id                    Int     @id @default(autoincrement())
+  usuarioId             Int
+  departamentoId        Int
+  rol_departamento      String?   @db.VarChar(255) // rol del usuario dentro del departamento, por ejemplo, jefe, colaborador, etc.
+  es_principal          Boolean   @default(false) // indica si este es el jefe del area del dpto
+  start_date            DateTime? // fecha de inicio del usuario en el departamento
+  end_date              DateTime? // fecha de fin del usuario en el departamento, si es que ya no pertenece al departamento
+
+  //Foranea keys
+  user      Usuario    @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  departamento      Departamento    @relation(fields: [departamentoId], references: [id], onDelete: Cascade)
+
+  @@map("org_usuario_departamentos")
+}
+
+// =========================
+// AUDIT MODEL
+// =========================
+
+model AuditLog {
+  id            Int       @id @default(autoincrement())
+  usuarioId     Int?
+  tipo_entidad  String    @db.VarChar(255) // nombre de la entidad afectada, por ejemplo, accionista, reunion, documento
+  entidadId     Int?      // id de la entidad afectada
+  accion        String    @db.VarChar(255) // tipo de accion realizada, por ejemplo, crear, actualizar, eliminar
+  valoresAntiguos Json? @map("valores_antiguos")
+  valoresNuevos Json? @map("valores_nuevos")
+  ipUsuario      String?   @db.VarChar(255) // ip del usuario que realizó la acción
+  createdAt     DateTime  @default(now())
+
+  //Foranea key opcional
+  user          Usuario?   @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
+
+
+// =========================
+// GENERAL MODELS, SON MODELOS QUE USA VARIOS USUARIOS
+// =========================
+model Tarea {
+  id            Int       @id @default(autoincrement())
+  reunionId     Int?
+  contexto_modulo       String?   @db.VarChar(255) // aqui es donde se asgina a que area o usuario pertenece, porque por ejemplo asamblea puede hacer reuniones, alta direccion tambien , junta directiva tambien, etc
+  asignado_por_usuarioId Int?      // id del usuario que asignó la tarea, se asigna automaticamente al crear la tarea
+  titulo         String    @db.VarChar(255)
+  descripcion    String?   @db.LongText
+  fecha_limite    DateTime?
+  estado          String?   @db.VarChar(255) // por ejemplo, pendiente, en progreso, completada, vencida, etc.
+  createdAt     DateTime  @default(now())
+
+  //Relación con usuarios
+  usuario        Usuario?   @relation(fields: [asignado_por_usuarioId], references: [id], onDelete: SetNull)
+  tareasAsignadas TareaAsignado[]
+    tareaDocumentos TareaDocumento[]
+  @@map("gen_tareas")
+}
+
+model TareaAsignado {
+  id            Int       @id @default(autoincrement())
+  tareaId       Int
+  usuarioId     Int
+  departamentoId    Int?      // id del departamento al que se asignó la tarea, si es que se asignó a un departamento, si es que se asignó directamente a un usuario, este campo es null
+  fecha_asignacion DateTime @default(now())
+  prioridad       String?   @db.VarChar(255) // por ejemplo, baja, media, alta, urgente, etc.
+
+  //Relación con tarea y usuario
+  tarea          Tarea      @relation(fields: [tareaId], references: [id], onDelete: Cascade)
+  usuario        Usuario    @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("gen_tarea_asignados")
+}
+
+model TareaDocumento {
+  id            Int       @id @default(autoincrement())
+  tareaId       Int
+  subido_por_usuarioId Int? // id del usuario que subió el archivo, se asigna automaticamente al subir el archivo
+  archivoId     Int
+
+  //Relación con tarea y archivo
+  tarea          Tarea      @relation(fields: [tareaId], references: [id], onDelete: Cascade)
+  archivo        Archivo    @relation(fields: [archivoId], references: [id], onDelete: Cascade)
+  usuario        Usuario?   @relation(fields: [subido_por_usuarioId], references: [id], onDelete: SetNull)
+
+  @@map("gen_tarea_documentos")
+}
+
+enum tipo_reunion {
+  ordinaria
+  extraordinaria
+  emergencia
+  holding
+  unidad_de_negocio
+  otro
+}
+enum tipo_modalidad {
+  presencial
+  virtual
+  hibrida
+}
+enum estado_reunion {
+  programada
+  en_progreso
+  finalizada
+  cancelada
+}
+model Reunion {
+  id                    Int       @id @default(autoincrement())
+  contexto_modulo       String?   @db.VarChar(255) // aqui es donde se asgina a que area o usuario pertenece, porque por ejemplo asamblea puede hacer reuniones, alta direccion tambien , junta directiva tambien, etc
+  codigo_sesion         String?   @db.VarChar(255) // este codigo se genera automaticamente cada vez que se crea una reunion, y sirve para identificar la reunion de manera unica, por ejemplo para generar el acta de la reunion, o para compartir el link de la reunion, etc
+  tipo_reunion          tipo_reunion?
+  hora_programacion     DateTime? // fecha y hora programada para la reunion
+  modalidad             tipo_modalidad?
+  ubicacion_o_link      String?   @db.LongText // si la reunion es presencial, aqui se guarda la ubicacion, si es virtual, aqui se guarda el link de la reunion
+  estado                estado_reunion? @default(programada)
+  created_by_usuarioId  Int?      // id del usuario que creó la reunion, se asigna automaticamente al crear la reunion
+
+  //Relación con usuarios
+  usuario        Usuario?   @relation(fields: [created_by_usuarioId], references: [id], onDelete: SetNull)
+
+  reunionacta     ReunionActa[]
+  reunionParticipantes ReunionParticipante[]
+
+  @@map("gen_reuniones")
+}
+
+model ReunionActa {
+  id            Int       @id @default(autoincrement())
+  reunionId     Int       @unique
+  archivoId     Int?      // id del archivo que contiene el acta de la reunion, se asigna automaticamente al generar el acta de la reunion, y sirve para relacionar el acta con el archivo que se genera al finalizar la reunion
+  contenido     String?   @db.LongText // aqui se guarda el contenido del acta de la reunion, que puede incluir acuerdos, tareas asignadas, etc
+  hora_inicio           DateTime? // fecha y hora de inicio de la reunion, se asigna automaticamente al iniciar la reunion
+  hora_fin              DateTime? // fecha y hora de fin de la reunion, se asign
+  duracion_minutos      Int?      // duracion de la reunion en minutos, se calcula automaticamente al finalizar la reunion
+  
+  //Relación con reunion
+  reunion        Reunion     @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  archivo        Archivo?    @relation(fields: [archivoId], references: [id], onDelete: SetNull)
+
+  @@map("gen_reunion_acta")
+}
+
+model ReunionParticipante {
+  id            Int       @id @default(autoincrement())
+  reunionId     Int
+  usuarioId     Int
+  enterado     Boolean   @default(false) // indica si el participante ira a la reunion
+  enterado_fecha DateTime? // fecha y hora en que el participante confirmó que asistirá a la reunion, se asigna automaticamente al confirmar la asistencia
+  asistencia     Boolean?  // indica si el participante asistió a la reunion, se asign
+  asistencia_fecha DateTime? // fecha y hora en que se registró la asistencia del participante, se asigna automaticamente al registrar la asistencia
+
+  //Relación con reunion y usuario
+  reunion        Reunion     @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  usuario        Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("gen_reunion_participantes")
+}
+
+
+model Carpeta {
+  id                      Int       @id @default(autoincrement())
+  parentId                Int?      // id de la carpeta padre, si es que esta carpeta es una subcarpeta
+  nombre                  String    @db.VarChar(255)
+  created_by_usuarioId    Int?      // id del usuario que creó la carpeta, se asigna automaticamente al crear la carpeta
+  is_root                  Boolean   @default(false) // indica si esta carpeta es una carpeta raiz, es decir, que no tiene carpeta padre
+  creadedAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt // metodo que sirve para actualizar la fecha de actualización cada vez que se actualiza el registro
+
+  //Relación con usuario
+  usuario        Usuario?   @relation(fields: [created_by_usuarioId], references: [id], onDelete: SetNull)
+  //Relación con permisos
+  carpetaPermisos  CarpetaoArchivo_Permiso[]
+  //Relación con archivos
+  archivos         Archivo[]
+  @@map("gen_carpetas")
+}
+
+model Archivo {
+  id            Int       @id @default(autoincrement())
+  carpetaId     Int
+  subido_por_usuarioId Int? // id del usuario que subió el archivo, se asigna automaticamente al subir el archivo
+  nombre_original       String    @db.LongText // nombre original del archivo, con su extension, por ejemplo, contrato.pdf
+  storage_disk String    @db.VarChar(255) // nombre del disco de almacenamiento donde se guarda el archivo, por ejemplo, local, s3, etc
+  storage_path String    @db.LongText // ruta completa del archivo en el disco de almacenamiento
+  tamanio_bytes Int
+  checksum      String    @db.VarChar(255) // checksum del archivo, que se genera automaticamente al subir el archivo, y sirve para verificar la integridad del archivo al descargarlo, por ejemplo, usando el algoritmo md5 o sha256
+  version       Int       @default(1) // version del archivo, se incrementa automaticamente cada vez que se actualiza el archivo
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt // metodo que sirve para actualizar la fecha de
+
+  //Relación con carpeta y usuario
+  carpeta        Carpeta    @relation(fields: [carpetaId], references: [id], onDelete: Cascade)
+  usuario        Usuario?   @relation(fields: [subido_por_usuarioId], references: [id], onDelete: SetNull)
+  ReunionActa    ReunionActa[] // un archivo puede ser el acta de varias reuniones, por ejemplo, si se genera un acta para una reunion, y luego se actualiza el acta con nueva información, se puede generar un nuevo archivo para el acta actualizada, y ambos archivos estarán relacionados con la misma reunion a través de la tabla ReunionActa
+  tareaDocumentos TareaDocumento[]
+  carpetaoArchivosPermisos  CarpetaoArchivo_Permiso[] // un archivo puede tener permisos asignados directamente, además de los permisos que hereda de la carpeta a la que pertenece, por ejemplo, si se quiere asignar un permiso específico para un archivo, sin afectar los permisos de la carpeta, se puede hacer a través de esta relación
+  decisionArchivos DecisionArchivo[] // un archivo puede estar relacionado con varias decisiones, por ejemplo, si se asigna un archivo como resultado de una decisión, y luego se asigna el mismo archivo como resultado de otra decisión, el archivo estará relacionado con ambas decisiones a través de la tabla DecisionArchivo
+  @@map("gen_archivos")
+}
+
+enum tipo_permiso_carpeta {
+  read
+  write
+  delete
+}
+model CarpetaoArchivo_Permiso {
+  id              Int       @id @default(autoincrement())
+  carpetaId       Int
+  usuarioId       Int
+  archivoId        Int?      // id del archivo al que se le asigna el permiso, si es que el permiso es para un archivo específico, si es que el permiso es para una carpeta, este campo es null
+  roleId          Int?      // id del rol asignado, si es que el permiso se asigna a través de un rol, si es que el permiso se asigna directamente al usuario, este campo es null
+  tipo_permiso    tipo_permiso_accion @default(allow) // indica si el permiso es de tipo allow o deny
+  
+  //Foranea keys
+  carpeta        Carpeta    @relation(fields: [carpetaId], references: [id], onDelete: Cascade)
+  usuario        Usuario    @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  role          Rol?      @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  archivo        Archivo?    @relation(fields: [archivoId], references: [id], onDelete: Cascade)
+  @@map("gen_carpeta_permisos")
+}
+
+model Decision {
+  id            Int       @id @default(autoincrement())
+  creado_por_usuarioId Int?      // id del usuario que creó la decisión, se asigna automaticamente al crear la decisión
+  responsable_usuarioId Int?      // id del usuario responsable de ejecutar la decisión, se asigna manualmente al crear o actualizar la decisión
+  tipo_decision   String?   @db.VarChar(255) // por ejemplo, acuerdo, tarea, seguimiento, etc.
+  impacto          String?   @db.VarChar(255) // por ejemplo, alto, medio, bajo, etc.
+  justificacion     String?   @db.LongText // aquí se explica el motivo de la decisión, y cualquier información relevante para entender la decisión
+  resultado        String?   @db.LongText // aquí se describe el resultado de la decisión, por ejemplo, si se asignó una tarea, aquí se describe la tarea asignada, si se tomó un acuerdo, aquí se describe el acuerdo tomado, etc.
+  createdAt     DateTime  @default(now())
+
+  //Relación con usuarios
+  creador        Usuario?   @relation("DecisionesCreadas", fields: [creado_por_usuarioId], references: [id], onDelete: SetNull)
+  responsable      Usuario?   @relation("DecisionesResponsables", fields: [responsable_usuarioId], references: [id], onDelete: SetNull)
+  decisionArchivos DecisionArchivo[] // una decisión puede tener varios archivos relacionados, por ejemplo, si se asigna una tarea como resultado de una decisión, se pueden adjuntar archivos relacionados con la tarea asignada, como documentos, imágenes, etc.
+
+  @@map("gen_decisiones")
+}
+
+model DecisionArchivo {
+  id            Int       @id @default(autoincrement())
+  decisionId    Int
+  subido_por_usuarioId Int? // id del usuario que subió el archivo relacionado con la decisión, se asigna automaticamente al subir el archivo
+  archivoId     Int
+
+  //Relación con decision y archivo
+  decision      Decision    @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  archivo        Archivo    @relation(fields: [archivoId], references: [id], onDelete: Cascade)
+  usuario        Usuario?   @relation(fields: [subido_por_usuarioId], references: [id], onDelete: SetNull)
+  @@map("gen_decision_archivos")
+} 
+
+
+// =========================
+// ASAMBLEA ACCIONISTAS MODELS
+// =========================
+
+
+// =========================
+// JUNTA DIRECTIVA MODELS
+// =========================
+
+// =========================
+// ALTA DIRECCION MODELS
+// =========================
+
+// =========================
+// RECURSOS HUMANOS ACCIONISTAS MODELS
+// =========================

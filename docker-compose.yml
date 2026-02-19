@@ -32,47 +32,6 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-
-  users-api:
-    build:
-      context: ./users-api/users
-      dockerfile: Dockerfile
-    container_name: users-api
-    working_dir: /var/www
-    volumes:
-      - ./users-api/users:/var/www
-    ports:
-      - "8000:8000"
-    environment:
-      DB_HOST: mysql
-      DB_DATABASE: crm_db
-      DB_USERNAME: crm_user
-      DB_PASSWORD: crm_pass
-    depends_on:
-      mysql:
-        condition: service_healthy
-    command: php artisan serve --host=0.0.0.0 --port=8000
-
-  sales-api:
-    build:
-      context: ./sales-api/sales
-      dockerfile: Dockerfile
-    container_name: sales-api
-    working_dir: /var/www
-    volumes:
-      - ./sales-api/sales:/var/www
-    ports:
-      - "8001:8000"
-    environment:
-      DB_HOST: mysql
-      DB_DATABASE: crm_db
-      DB_USERNAME: crm_user
-      DB_PASSWORD: crm_pass
-    depends_on:
-      mysql:
-        condition: service_healthy
-    command: php artisan serve --host=0.0.0.0 --port=8000
-
   frontendapp:
     image: node:20
     container_name: crm-react-js
@@ -88,22 +47,22 @@ services:
     stdin_open: true
     tty: true
 
-  user-api-express:
+  login:
     image: node:20
-    container_name: user-api-express
+    container_name: login-api-express
     working_dir: /app
     volumes:
-      - ./user-api-express:/app
+      - ./login:/app
       - express_node_modules:/app/node_modules
     ports:
       - "4000:4000"
     environment:
+      DATABASE_URL: mysql://root:root123@mysql:3306/crm_db
       DB_HOST: mysql
       DB_USER: crm_user
       DB_PASSWORD: crm_pass
       DB_NAME: crm_db
       DB_PORT: 3306
-      JWT_SECRET: super_secret_jwt_key
     depends_on:
       mysql:
         condition: service_healthy
